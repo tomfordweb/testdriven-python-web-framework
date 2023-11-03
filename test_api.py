@@ -53,7 +53,8 @@ def test_class_based_handler_get(api, client):
         def get(self, req, res):
             res.text = response_text
 
-    assert client.get('http://testserver/foo').text == response_text
+    assert client.get("http://testserver/foo").text == response_text
+
 
 def test_class_based_handler_post(api, client):
     response_text = "hello bar"
@@ -63,15 +64,17 @@ def test_class_based_handler_post(api, client):
         def post(self, req, res):
             res.text = response_text
 
-    assert client.post('http://testserver/bar').text == response_text
+    assert client.post("http://testserver/bar").text == response_text
+
 
 def test_class_based_handler_method_not_allowed(api, client):
     @api.route("/baz")
     class BazHandler:
         def post(self, req, res):
             res.text = "yo"
+
     with pytest.raises(AttributeError):
-        client.get('http://testserver/baz')
+        client.get("http://testserver/baz")
 
 
 def test_alternative_django_approach_of_adding_route(api, client):
@@ -80,18 +83,35 @@ def test_alternative_django_approach_of_adding_route(api, client):
     def alternative(req, resp):
         resp.text = response_text
 
-    api.add_route('/alternative', alternative)
+    api.add_route("/alternative", alternative)
 
-    assert client.get('http://testserver/alternative').text == response_text
+    assert client.get("http://testserver/alternative").text == response_text
+
 
 def test_template(api, client):
     @api.route("/html")
     def html_handler(req, res):
-        res.body = api.template("index.html", context={"title": "Some Title", "name": "Some Name"}).encode()
+        res.body = api.template(
+            "index.html", context={"title": "Some Title", "name": "Some Name"}
+        ).encode()
 
-    response = client.get('http://testserver/html')
+    response = client.get("http://testserver/html")
 
-    assert "text/html" in response.headers['Content=Type']
+    assert "text/html" in response.headers["Content-Type"]
     assert "Some Title" in response.text
     assert "Some Name" in response.text
 
+
+def test_custom_exception_handler(api, client):
+    def on_exception(req, res, exc):
+        res.text = "AttributeErrorHappened"
+
+    api.add_exception_handler(on_exception)
+
+    @api.route("/")
+    def index(req, resp):
+        raise AttributeError()
+
+    response = client.get("http://testserver/")
+
+    assert response.text == "AttributeErrorHappened"

@@ -1,6 +1,13 @@
 from api import API
 
+
+def custom_exception_handler(request, response, exception_cls):
+    response.text = str(exception_cls)
+    response.status_code = 500
+
 app = API()
+
+app.add_exception_handler(custom_exception_handler)
 
 
 @app.route("/home")
@@ -36,3 +43,9 @@ def template_handler(req, resp):
             "title": "Test Driven Python Web Framework",
         },
     ).encode()
+
+@app.route('/exception')
+def exception_thrower(req, res):
+    raise AssertionError("This handler should not be used")
+
+
