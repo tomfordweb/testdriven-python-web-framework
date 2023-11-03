@@ -19,13 +19,16 @@ class API:
 
     # To be used as a decorator to define different application routes
     def route(self, path):
-        assert path not in self.routes, "Route is already defined!"
-
         def wrapper(handler):
-            self.routes[path] = handler
+            self.add_route(path, handler);
             return handler
 
         return wrapper
+
+    def add_route(self, path, handler):
+        assert path not in self.routes, "Route is already defined!"
+
+        self.routes[path] = handler
 
     # The request handler
     def handle_request(self, request):

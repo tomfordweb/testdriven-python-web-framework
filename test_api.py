@@ -74,4 +74,13 @@ def test_class_based_handler_method_not_allowed(api, client):
         client.get('http://testserver/baz')
 
 
+def test_alternative_django_approach_of_adding_route(api, client):
+    response_text = "alternative way to add a route"
+
+    def alternative(req, resp):
+        resp.text = response_text
+
+    api.add_route('/alternative', alternative)
+
+    assert client.get('http://testserver/alternative').text == response_text
 
