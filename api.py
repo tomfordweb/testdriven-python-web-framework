@@ -2,13 +2,18 @@ from webob import Request, Response
 from parse import parse
 from requests import Session as RequestsSession
 from wsgiadapter import WSGIAdapter as RequestsWSGIAdapter
+from jinja2 import Environment, FileSystemLoader
 
 import inspect
+import os
 
 
 class API:
-    def __init__(self):
+    def __init__(self, templates_dir="templates"):
         self.routes = {}
+        self.template_env = Environment(
+            loader=FileSystemLoader(os.path.abspath(templates_dir))
+        )
 
     def __call__(self, environ, start_response):
         request = Request(environ)
@@ -17,10 +22,15 @@ class API:
 
         return response(environ, start_response)
 
+    def template(self, template_name, context=None):
+        if context is None:
+            context = {}
+        return self.template_env.get_template(template_name).render(**context)
+
     # To be used as a decorator to define different application routes
     def route(self, path):
         def wrapper(handler):
-            self.add_route(path, handler);
+            self.add_route(path, handler)
             return handler
 
         return wrapper
