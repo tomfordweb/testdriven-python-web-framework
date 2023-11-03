@@ -15,13 +15,18 @@ class API:
         self.template_env = Environment(
             loader=FileSystemLoader(os.path.abspath(templates_dir))
         )
+        # The static file handler, by default all requests pass through this.
+        # Notice that the main wsgi_app handler is passed to this.
         self.whitenoise = WhiteNoise(self.wsgi_app, root=static_dir)
 
         self.exception_handler = None
 
+    # Per pep3333 all WSGI servers must be callable
+    # We pass it to whitenoise so that static files can be processed
     def __call__(self, environ, start_response):
         return self.whitenoise(environ, start_response)
 
+    # The main request handler.
     def wsgi_app(self, environ, start_response):
         request = Request(environ)
 
@@ -35,10 +40,12 @@ class API:
             context = {}
         return self.template_env.get_template(template_name).render(**context)
 
+    # Allows capability to add a custom exception handler passed by reference
     def add_exception_handler(self, exception_handler):
         self.exception_handler = exception_handler
 
     # To be used as a decorator to define different application routes
+    # It behaves the same as add_route, but is a bit more fluent.
     def route(self, path):
         def wrapper(handler):
             self.add_route(path, handler)
@@ -47,12 +54,13 @@ class API:
         return wrapper
 
     # Add a route to the applications routes
+    # this is the same as the "route" decorator method, and is more of a django approach
     def add_route(self, path, handler):
         assert path not in self.routes, "Route is already defined!"
 
         self.routes[path] = handler
 
-    # The request handler
+    # Handle the request
     def handle_request(self, request):
         response = Response()
 
@@ -87,10 +95,12 @@ class API:
 
         return None, None
 
+    # By default, if the page cannot be found - return 404
     def default_response(self, response):
         response.status_code = 404
         response.text = "Not Found"
 
+    # Allows one to create a spoofed/mocked test server
     def test_session(self, base_url="http://testserver"):
         session = RequestsSession()
         session.mount(prefix=base_url, adapter=RequestsWSGIAdapter(self))
