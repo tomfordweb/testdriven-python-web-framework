@@ -3,21 +3,26 @@ from parse import parse
 from requests import Session as RequestsSession
 from wsgiadapter import WSGIAdapter as RequestsWSGIAdapter
 from jinja2 import Environment, FileSystemLoader
+from whitenoise import WhiteNoise
 
 import inspect
 import os
 
 
 class API:
-    def __init__(self, templates_dir="templates"):
+    def __init__(self, templates_dir="templates", static_dir="static"):
         self.routes = {}
         self.template_env = Environment(
             loader=FileSystemLoader(os.path.abspath(templates_dir))
         )
+        self.whitenoise = WhiteNoise(self.wsgi_app, root=static_dir)
 
         self.exception_handler = None
 
     def __call__(self, environ, start_response):
+        return self.whitenoise(environ, start_response)
+
+    def wsgi_app(self, environ, start_response):
         request = Request(environ)
 
         response = self.handle_request(request)
@@ -59,7 +64,8 @@ class API:
                 if inspect.isclass(handler):
                     handler = getattr(handler(), request.method.lower(), None)
                     if handler is None:
-                        raise AttributeError("Method not allowed", request.method)
+                        raise AttributeError(
+                            "Method not allowed", request.method)
 
                 handler(request, response, **kwargs)
             else:
