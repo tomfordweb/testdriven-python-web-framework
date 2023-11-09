@@ -146,6 +146,7 @@ def test_assets_are_served(tmpdir_factory):
     assert response.status_code == 200
     assert response.text == FILE_CONTENTS
 
+
 def test_middleware_methods_are_called(api, client):
     process_request_called = False
     process_response_called = False
@@ -164,14 +165,15 @@ def test_middleware_methods_are_called(api, client):
 
     api.add_middleware(CallMiddlewareMethods)
 
-    @api.route('/')
+    @api.route("/")
     def index(req, res):
         res.text = "hey"
 
-    client.get('http://testserver/')
+    client.get("http://testserver/")
 
     assert process_request_called is True
     assert process_response_called is True
+
 
 def test_allowed_methods_for_function_based_handlers(api, client):
     @api.route("/home", allowed_methods=["post"])
@@ -182,5 +184,56 @@ def test_allowed_methods_for_function_based_handlers(api, client):
         client.get("http://testServer/home")
 
     assert client.post("http://testserver/home").text == "Hello"
+
+
+def test_json_response_helper(api, client):
+    @api.route("/json")
+    def json_handler(request, response):
+        response.json = {"name": "tom"}
+
+    response = client.get("http://testserver/json")
+    json_body = response.json()
+
+    assert "application/json" in response.headers['Content-Type']
+    assert json_body["name"] == "tom"
+
+
+def test_html_response_helper(api, client):
+    @api.route("/html")
+    def html_handler(request, response):
+        response.html = api.template(
+            "index.html", context={"title": "Best Title", "name": "Best Name"}
+        )
+    response = client.get("http://testserver/html")
+
+    assert "text/html" in response.headers['Content-Type']
+    assert "Best Title" in response.text
+    assert "Best Name" in response.text
+
+def test_text_response_helper(api, client):
+    response_text = "Just Plain Text"
+
+    @api.route('/text')
+    def text_handler(req, resp):
+        resp.text = response_text
+    
+    response = client.get('http://testserver/text')
+
+    assert "text/plain" in response.headers['Content-Type']
+    assert response.text == response_text
+
+def manually_setting_body(api,client):
+    @api.route('/body')
+    def text_handler(request, response):
+        response.body = b"Byte Body"
+        response.content_type = "text/plain"
+
+    response = client.get('http://testserver/body')
+
+    assert "text/plain" in response.headers["Content-Type"]
+    assert response.text == "Byte Body"
+
+    k
+
 
 

@@ -6,7 +6,9 @@ def custom_exception_handler(request, response, exception_cls):
     response.text = str(exception_cls)
     response.status_code = 500
 
+
 app = API()
+
 
 class RequestLogMiddleware(Middleware):
     def process_request(self, req):
@@ -15,17 +17,18 @@ class RequestLogMiddleware(Middleware):
     def process_response(self, req, res):
         print("Processing response", req.url)
 
+
 app.add_middleware(RequestLogMiddleware)
 
 app.add_exception_handler(custom_exception_handler)
 
 
-@app.route("/home")
+@app.route("/json")
 def home(request, response):
-    response.text = "Hello from the HOME page"
+    response.json = {"hello": "world"}
 
 
-@app.route("/about")
+@app.route("/text")
 def about(request, response):
     response.text = "Hello from the ABOUT page"
 
@@ -46,16 +49,15 @@ class BooksResource:
 
 @app.route("/")
 def template_handler(req, resp):
-    resp.body = app.template(
+    resp.html = app.template(
         "index.html",
         context={
             "name": "Test Driven Python Web Framework",
             "title": "Test Driven Python Web Framework",
         },
-    ).encode()
+    )
 
-@app.route('/exception')
+
+@app.route("/exception")
 def exception_thrower(req, res):
     raise AssertionError("This handler should not be used")
-
-
