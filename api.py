@@ -27,7 +27,7 @@ class API:
     def __call__(self, environ, start_response):
         path_info = environ["PATH_INFO"]
         if path_info.startswith("/static"):
-            environ["PATH_INFO"] = path_info[len("/static"):]
+            environ["PATH_INFO"] = path_info[len("/static") :]
             return self.whitenoise(environ, start_response)
 
         return self.middleware(environ, start_response)
@@ -55,34 +55,41 @@ class API:
 
     # To be used as a decorator to define different application routes
     # It behaves the same as add_route, but is a bit more fluent.
-    def route(self, path):
+    def route(self, path, allowed_methods=None):
         def wrapper(handler):
-            self.add_route(path, handler)
+            self.add_route(path, handler, allowed_methods)
             return handler
 
         return wrapper
 
     # Add a route to the applications routes
     # this is the same as the "route" decorator method, and is more of a django approach
-    def add_route(self, path, handler):
+    def add_route(self, path, handler, allowed_methods=None):
         assert path not in self.routes, "Route is already defined!"
 
-        self.routes[path] = handler
+        if allowed_methods is None:
+            allowed_methods = ["get", "post", "put", "patch", "delete", "options"]
+
+        self.routes[path] = {"handler": handler, "allowed_methods": allowed_methods}
 
     # Handle the request
     def handle_request(self, request):
         response = Response()
 
-        handler, kwargs = self.find_handler(request_path=request.path)
+        handler_data, kwargs = self.find_handler(request_path=request.path)
 
         try:
-            if handler is not None:
+            if handler_data is not None:
+                handler = handler_data["handler"]
+                allowed_methods = handler_data["allowed_methods"]
                 # Class based request handler
                 if inspect.isclass(handler):
                     handler = getattr(handler(), request.method.lower(), None)
                     if handler is None:
-                        raise AttributeError(
-                            "Method not allowed", request.method)
+                        raise AttributeError("Method not allowed", request.method)
+                else:
+                    if request.method.lower() not in allowed_methods:
+                        raise AttributeError("Method not allowed", request.method)
 
                 handler(request, response, **kwargs)
             else:
@@ -97,10 +104,10 @@ class API:
 
     # Find the handler defined by @app.route decorator
     def find_handler(self, request_path):
-        for path, handler in self.routes.items():
+        for path, handler_data in self.routes.items():
             parse_result = parse(path, request_path)
             if parse_result is not None:
-                return handler, parse_result.named
+                return handler_data, parse_result.named
 
         return None, None
 
