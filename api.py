@@ -4,6 +4,7 @@ from requests import Session as RequestsSession
 from wsgiadapter import WSGIAdapter as RequestsWSGIAdapter
 from jinja2 import Environment, FileSystemLoader
 from whitenoise import WhiteNoise
+from middleware import Middleware
 
 import inspect
 import os
@@ -18,13 +19,18 @@ class API:
         # The static file handler, by default all requests pass through this.
         # Notice that the main wsgi_app handler is passed to this.
         self.whitenoise = WhiteNoise(self.wsgi_app, root=static_dir)
-
         self.exception_handler = None
+        self.middleware = Middleware(self)
 
     # Per pep3333 all WSGI servers must be callable
     # We pass it to whitenoise so that static files can be processed
     def __call__(self, environ, start_response):
-        return self.whitenoise(environ, start_response)
+        path_info = environ["PATH_INFO"]
+        if path_info.startswith("/static"):
+            environ["PATH_INFO"] = path_info[len("/static"):]
+            return self.whitenoise(environ, start_response)
+
+        return self.middleware(environ, start_response)
 
     # The main request handler.
     def wsgi_app(self, environ, start_response):
@@ -39,6 +45,9 @@ class API:
         if context is None:
             context = {}
         return self.template_env.get_template(template_name).render(**context)
+
+    def add_middleware(self, middleware_class):
+        self.middleware.add(middleware_class)
 
     # Allows capability to add a custom exception handler passed by reference
     def add_exception_handler(self, exception_handler):
