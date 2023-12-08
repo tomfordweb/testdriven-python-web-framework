@@ -1,4 +1,5 @@
 import sqlite3
+import pytest
 
 
 def test_create_db(db):
@@ -75,3 +76,84 @@ def test_query_all_authors(db, Author):
     assert type(authors[0]) == Author
     assert {a.age for a in authors} == {23, 43}
     assert {a.name for a in authors} == {"John Smith", "Vic Star"}
+
+
+def test_get_author(db, Author):
+    db.create(Author)
+    roman = Author(name="John Doe", age=43)
+    db.save(roman)
+
+    john_from_db = db.get(Author, id=1)
+
+    print(john_from_db.name)
+    assert Author._get_select_where_sql(id=1) == (
+        "SELECT id, age, name FROM author WHERE id = ?;",
+        ["id", "age", "name"],
+        [1],
+    )
+
+    assert type(john_from_db) == Author
+    assert john_from_db.age == 43
+    assert john_from_db.name == "John Doe"
+    assert john_from_db.id == 1
+
+def test_get_book(db, Author, Book):
+    db.create(Author)
+    db.create(Book)
+    john = Author(name="John", age=34)
+    arash = Author(name="Arash", age=50)
+    book = Book(title="Building an ORM", published=False, author=john)
+    book2 = Book(title="scoring goals", published=True, author=arash)
+
+    db.save(john)
+    db.save(arash)
+    db.save(book)
+    db.save(book2)
+
+    book_from_db = db.get(Book, 2)
+
+    assert book_from_db.title == "scoring goals"
+    assert book_from_db.author.name == "Arash"
+    assert book_from_db.author.id == 2
+
+def test_query_all_books(db, Author, Book):
+    db.create(Author)
+    db.create(Book)
+
+    john = Author(name="John Doe", age=43)
+    arash = Author(name="Arash Kun", age=50)
+    book = Book(title="Building an ORM", published=False, author=john)
+    book2 = Book(title="Scoring Goals", published=True, author=arash)
+
+    db.save(john)
+    db.save(arash)
+    db.save(book)
+    db.save(book2)
+
+    books = db.all(Book)
+
+    assert len(books) == 2
+    assert books[1].author.name == "Arash Kun"
+
+def test_update_author(db, Author):
+    db.create(Author)
+    john = Author(name="John", age=22)
+    db.save(john)
+
+    john.age = 23
+    john.name = "John Wick"
+    db.update(john)
+
+    john_from_db = db.get(Author, john.id)
+    assert john_from_db.age == 23
+    assert john_from_db.name == "John Wick"
+
+def test_delete_author(db, Author):
+    db.create(Author)
+    john = Author(name="John Doe", age=23)
+    db.save(john)
+
+    db.delete(Author, id=1)
+
+    with pytest.raises(Exception):
+        db.get(Author, 1)
